@@ -1194,6 +1194,9 @@ public class TiledPaletteQuantizer
                 
                 for (int iteration = 0; iteration < pairIterations; iteration++)
                 {
+                    if (numColors - startIndex - 1 <= 0)
+                        break;
+                        
                     int i1 = startIndex + _random.Next(numColors - startIndex - 1);
                     int i2 = i1 + 1 + _random.Next(numColors - i1 - 1);
                     
@@ -1235,7 +1238,14 @@ public class TiledPaletteQuantizer
                 var revIndex = colorIndex[p1];
                 for (int i = 0; i < numColors; i++)
                 {
-                    revIndex[p2, i] = Array.IndexOf(Enumerable.Range(0, numColors).Select(j => index[p1, j]).ToArray(), i);
+                    for (int j = 0; j < numColors; j++)
+                    {
+                        if (index[p1, j] == i)
+                        {
+                            revIndex[p2, i] = j;
+                            break;
+                        }
+                    }
                 }
             }
         }
@@ -1248,7 +1258,7 @@ public class TiledPaletteQuantizer
             for (int iteration = 0; iteration < paletteIterations; iteration++)
             {
                 int index1 = Math.Max(1, _random.Next(numPalettes));
-                int index2 = Math.Min(numPalettes, index1 + 1 + _random.Next(numPalettes));
+                int index2 = Math.Min(numPalettes - 1, index1 + 1 + _random.Next(numPalettes - index1));
                 
                 int i1b = palIndex[index1 - 1];
                 int i1 = palIndex[index1];
@@ -1282,8 +1292,11 @@ public class TiledPaletteQuantizer
         {
             for (int iteration = 0; iteration < paletteIterations; iteration++)
             {
-                int index1 = Math.Max(1 + startIndex, _random.Next(numColors));
-                int index2 = Math.Min(numColors, index1 + 1 + _random.Next(numColors));
+                if (numColors - (1 + startIndex) <= 0)
+                    break;
+                    
+                int index1 = Math.Max(1 + startIndex, _random.Next(numColors - 1) + 1);
+                int index2 = Math.Min(numColors - 1, index1 + 1 + _random.Next(numColors - index1));
                 
                 int i1b = p1Index[index1 - 1];
                 int i1 = p1Index[index1];
@@ -1328,8 +1341,8 @@ public class TiledPaletteQuantizer
                 
                 while (iteration < tIterations)
                 {
-                    int index1 = Math.Max(startIndex, _random.Next(numColors));
-                    int index2 = Math.Max(startIndex, _random.Next(numColors));
+                    int index1 = Math.Max(startIndex, _random.Next(numColors - 1) + 1);
+                    int index2 = Math.Max(startIndex, _random.Next(numColors - 1) + 1);
                     
                     if (index1 == index2)
                         continue;
