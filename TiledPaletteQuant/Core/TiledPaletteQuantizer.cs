@@ -57,25 +57,35 @@ public class TiledPaletteQuantizer
 
         int[] prog = useDither ? new[] { 25, 65, 90, 94 } : new[] { 25, 65, 90, 100 };
 
-        // Step 5: Generate initial single-color palette
-        var palettes = ColorQuantize1Color(tiles, pixels, randomShuffle);
-
-        int startIndex = 2;
-        if (_options.ColorZeroBehavior == ColorZeroBehavior.Shared)
-            startIndex = 3;
-
-        int endIndex = _options.ColorsPerPalette;
-        if (_options.ColorZeroBehavior == ColorZeroBehavior.TransparentFromColor ||
-            _options.ColorZeroBehavior == ColorZeroBehavior.TransparentFromTransparent)
-            endIndex -= 1;
+        // Step 5: Generate initial palette with all colors
+        var initialPalette = ColorQuantize1Palette(tiles, pixels, randomShuffle);
+        var palettes = new List<List<double[]>> { DeepClonePalette(initialPalette) };
 
         UpdateProgress(prog[0] / _options.PaletteCount);
 
-        // Step 6: Expand palettes by adding colors one at a time
-        for (int numColors = startIndex; numColors <= endIndex; numColors++)
+        // Step 6: Expand number of palettes by splitting
+        int splitIndex = 0;
+        for (int numPalettes = 2; numPalettes <= _options.PaletteCount; numPalettes++)
         {
-            ExpandPalettesByOneColor(palettes, tiles, pixels, randomShuffle);
-            UpdateProgress((prog[0] * numColors) / _options.ColorsPerPalette);
+            // Duplicate the palette with max error and converge
+            palettes.Add(DeepClonePalette(palettes[splitIndex]));
+
+            for (int iteration = 0; iteration < (int)iterations; iteration++)
+            {
+                var nextPixel = pixels[randomShuffle.Next()];
+                MovePalettesCloser(palettes, nextPixel, alpha);
+            }
+
+            // Find palette with maximum distance for next split
+            var paletteDistances = new double[numPalettes];
+            foreach (var tile in tiles)
+            {
+                var (palIndex, distance) = ClosestPaletteDistance(palettes, tile, useDither);
+                paletteDistances[palIndex] += distance;
+            }
+            splitIndex = MaxIndex(paletteDistances);
+
+            UpdateProgress((prog[0] * numPalettes) / _options.PaletteCount);
         }
 
         // Step 7: Replace weakest colors iteratively
@@ -143,7 +153,14 @@ public class TiledPaletteQuantizer
 
         // Step 11: Final palette reduction and sorting
         palettes = ReducePalettes(palettes, _options.BitsPerChannel);
-        palettes = PaletteSorter.SortPalettes(palettes, startIndex);
+        
+        int sortStartIndex = 0;
+        if (_options.ColorZeroBehavior == ColorZeroBehavior.TransparentFromColor ||
+            _options.ColorZeroBehavior == ColorZeroBehavior.TransparentFromTransparent ||
+            _options.ColorZeroBehavior == ColorZeroBehavior.Shared)
+            sortStartIndex = 1;
+        
+        palettes = PaletteSorter.SortPalettes(palettes, sortStartIndex);
 
         // Step 12: Generate final quantized image
         var result = QuantizeTiles(palettes, reducedImageData, width, height, useDither);
@@ -255,14 +272,21 @@ public class TiledPaletteQuantizer
         return pixels;
     }
 
-    private List<List<double[]>> ColorQuantize1Color(List<TileData> tiles, List<PixelData> pixels, RandomShuffle randomShuffle)
+    private List<double[]> ColorQuantize1Palette(List<TileData> tiles, List<PixelData> pixels, RandomShuffle randomShuffle)
     {
-        // From worker.js lines 1093-1153: Start with 1 color palette and expand
+        // From worker.js lines 1093-1153: Build a single palette with all colors
         double iterations = _options.FractionOfPixels * pixels.Count;
         if (_options.DitherMode == DitherMode.Slow)
             iterations /= 5;
 
+        double errorStartIteration = iterations * 0.5;
         const double alpha = 0.3;
+
+        // Calculate target number of colors
+        int colorsPerPalette = _options.ColorsPerPalette;
+        if (_options.ColorZeroBehavior == ColorZeroBehavior.TransparentFromColor ||
+            _options.ColorZeroBehavior == ColorZeroBehavior.TransparentFromTransparent)
+            colorsPerPalette--;
 
         // Calculate average color
         double[] avgColor = new[] { 0.0, 0.0, 0.0 };
@@ -274,105 +298,61 @@ public class TiledPaletteQuantizer
         for (int i = 0; i < 3; i++)
             avgColor[i] /= pixels.Count;
 
-        // Create initial palette with average color
-        var palette = new List<double[]> { avgColor };
+        int? sharedColorIndex = null;
+        if (_options.ColorZeroBehavior == ColorZeroBehavior.Shared)
+            sharedColorIndex = 0;
 
-        // Expand to desired number of colors
-        int targetColors = _options.ColorsPerPalette;
-        if (_options.ColorZeroBehavior == ColorZeroBehavior.TransparentFromColor ||
-            _options.ColorZeroBehavior == ColorZeroBehavior.TransparentFromTransparent)
-            targetColors--;
+        var colors = new List<double[]> { avgColor };
+        int splitIndex = 0;
 
-        while (palette.Count < targetColors)
+        // Expand from 1 color to colorsPerPalette
+        for (int numColors = 2; numColors <= colorsPerPalette; numColors++)
         {
-            // Run iterations to converge current palette
-            for (int iteration = 0; iteration < iterations; iteration++)
+            if (numColors == 2 && _options.ColorZeroBehavior == ColorZeroBehavior.Shared)
+            {
+                colors[0] = ColorUtils.CloneColor(_options.ColorZeroValue);
+                colors.Add(avgColor);
+            }
+            else
+            {
+                colors.Add(ColorUtils.CloneColor(colors[splitIndex]));
+            }
+
+            var totalColorDistance = new double[numColors];
+            var ditherEngine = _options.DitherMode == DitherMode.Slow ? new DitherEngine(_options) : null;
+
+            for (int iteration = 0; iteration < (int)iterations; iteration++)
             {
                 var nextPixel = pixels[randomShuffle.Next()];
-                var (closestIndex, _) = DitherEngine.GetClosestColor(palette, nextPixel.Color);
-                ColorUtils.MoveColorCloser(palette[closestIndex], nextPixel.Color, alpha);
+                int minColorIndex;
+                double minColorDistance;
+                double[] targetColor;
+
+                if (_options.DitherMode == DitherMode.Slow)
+                {
+                    (minColorIndex, minColorDistance, targetColor) = ditherEngine!.ClosestColorDither(colors, nextPixel);
+                }
+                else
+                {
+                    (minColorIndex, minColorDistance) = DitherEngine.GetClosestColor(colors, nextPixel.Color);
+                    targetColor = nextPixel.Color;
+                }
+
+                if (minColorIndex != sharedColorIndex)
+                {
+                    ColorUtils.MoveColorCloser(colors[minColorIndex], targetColor, alpha);
+                }
+
+                if (iteration > errorStartIteration)
+                {
+                    totalColorDistance[minColorIndex] += minColorDistance;
+                }
             }
 
-            // Find color with maximum error and split it
-            var errors = new double[palette.Count];
-            foreach (var pixel in pixels)
-            {
-                var (closestIndex, dist) = DitherEngine.GetClosestColor(palette, pixel.Color);
-                errors[closestIndex] += dist;
-            }
-
-            int maxErrorIndex = 0;
-            for (int i = 1; i < errors.Length; i++)
-            {
-                if (errors[i] > errors[maxErrorIndex])
-                    maxErrorIndex = i;
-            }
-
-            // Duplicate the color with max error
-            palette.Add(ColorUtils.CloneColor(palette[maxErrorIndex]));
+            splitIndex = MaxIndex(totalColorDistance);
         }
 
-        // Create palettes (initially all the same)
-        var palettes = new List<List<double[]>>();
-        for (int i = 0; i < _options.PaletteCount; i++)
-        {
-            var pal = new List<double[]>();
-            foreach (var color in palette)
-            {
-                pal.Add(ColorUtils.CloneColor(color));
-            }
-            palettes.Add(pal);
-        }
-
-        return palettes;
-    }
-
-    private void ExpandPalettesByOneColor(List<List<double[]>> palettes, List<TileData> tiles, 
-        List<PixelData> pixels, RandomShuffle randomShuffle)
-    {
-        // From worker.js lines 203-222
-        if (palettes.Count == 1)
-            return;
-
-        double iterations = _options.FractionOfPixels * pixels.Count;
-        if (_options.DitherMode == DitherMode.Slow)
-            iterations /= 5;
-
-        double alpha = 0.3;
-        if (_options.DitherMode == DitherMode.Slow)
-            alpha = 0.1;
-
-        // Find palette with maximum distance
-        var paletteDistances = new double[palettes.Count];
-        foreach (var tile in tiles)
-        {
-            for (int i = 0; i < palettes.Count; i++)
-            {
-                paletteDistances[i] += PaletteDistance(palettes[i], tile);
-            }
-        }
-
-        int maxPaletteIndex = 0;
-        for (int i = 1; i < paletteDistances.Length; i++)
-        {
-            if (paletteDistances[i] > paletteDistances[maxPaletteIndex])
-                maxPaletteIndex = i;
-        }
-
-        // Duplicate the palette with max distance
-        var newPalette = new List<double[]>();
-        foreach (var color in palettes[maxPaletteIndex])
-        {
-            newPalette.Add(ColorUtils.CloneColor(color));
-        }
-        palettes.Add(newPalette);
-
-        // Converge the new palette configuration
-        for (int iteration = 0; iteration < iterations; iteration++)
-        {
-            var nextPixel = pixels[randomShuffle.Next()];
-            MovePalettesCloser(palettes, nextPixel, alpha);
-        }
+        return colors;
     }
 
     private List<List<double[]>> ReplaceWeakestColors(List<List<double[]>> palettes, List<TileData> tiles,
@@ -723,12 +703,17 @@ public class TiledPaletteQuantizer
         var result = new List<List<double[]>>();
         foreach (var palette in palettes)
         {
-            var pal = new List<double[]>();
-            foreach (var color in palette)
-            {
-                pal.Add(ColorUtils.CloneColor(color));
-            }
-            result.Add(pal);
+            result.Add(DeepClonePalette(palette));
+        }
+        return result;
+    }
+
+    private List<double[]> DeepClonePalette(List<double[]> palette)
+    {
+        var result = new List<double[]>();
+        foreach (var color in palette)
+        {
+            result.Add(ColorUtils.CloneColor(color));
         }
         return result;
     }

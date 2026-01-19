@@ -214,13 +214,13 @@ public static class PaletteSorter
 
                     int up1 = pIndex[i - 1][index1];
                     int i1 = pIndex[i][index1];
-                    int left1 = pIndex[i][index1 - 1];
-                    int right1 = pIndex[i][index1 + 1];
+                    int left1 = index1 > 0 ? pIndex[i][index1 - 1] : -1;
+                    int right1 = index1 < numColors - 1 ? pIndex[i][index1 + 1] : numColors;
 
                     int up2 = pIndex[i - 1][index2];
                     int i2 = pIndex[i][index2];
-                    int left2 = pIndex[i][index2 - 1];
-                    int right2 = pIndex[i][index2 + 1];
+                    int left2 = index2 > 0 ? pIndex[i][index2 - 1] : -1;
+                    int right2 = index2 < numColors - 1 ? pIndex[i][index2 + 1] : numColors;
 
                     double straightDist = upWeight * ColorUtils.ColorDistance(palettes[p2][i1], palettes[p1][up1]);
                     if (left1 >= 0)
