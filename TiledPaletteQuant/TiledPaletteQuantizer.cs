@@ -1344,8 +1344,8 @@ public class TiledPaletteQuantizer
                 
                 while (iteration < tIterations)
                 {
-                    int index1 = Math.Max(startIndex, _random.Next(numColors - 1) + 1);
-                    int index2 = Math.Max(startIndex, _random.Next(numColors - 1) + 1);
+                    int index1 = Math.Max(startIndex, _random.Next(numColors));
+                    int index2 = Math.Max(startIndex, _random.Next(numColors));
                     
                     if (index1 == index2)
                         continue;
