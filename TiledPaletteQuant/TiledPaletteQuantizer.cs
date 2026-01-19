@@ -1170,6 +1170,7 @@ public class TiledPaletteQuantizer
         }
         
         // Build palette distance matrix and color index mapping
+        // Arrays sized with +2 to accommodate sentinel values at boundaries for the traveling salesman algorithm
         var paletteDist = new double[numPalettes + 2, numPalettes + 2];
         var colorIndex = new int[numPalettes][,];
         
@@ -1194,10 +1195,12 @@ public class TiledPaletteQuantizer
                 
                 for (int iteration = 0; iteration < pairIterations; iteration++)
                 {
-                    if (numColors - startIndex - 1 <= 0)
+                    if (numColors - startIndex - 1 < 1)
                         break;
                         
                     int i1 = startIndex + _random.Next(numColors - startIndex - 1);
+                    if (numColors - i1 - 1 < 1)
+                        break;
                     int i2 = i1 + 1 + _random.Next(numColors - i1 - 1);
                     
                     if (_random.NextDouble() < 0.5)
@@ -1258,6 +1261,8 @@ public class TiledPaletteQuantizer
             for (int iteration = 0; iteration < paletteIterations; iteration++)
             {
                 int index1 = Math.Max(1, _random.Next(numPalettes));
+                if (numPalettes - index1 < 1)
+                    continue;
                 int index2 = Math.Min(numPalettes - 1, index1 + 1 + _random.Next(numPalettes - index1));
                 
                 int i1b = palIndex[index1 - 1];
@@ -1277,6 +1282,7 @@ public class TiledPaletteQuantizer
         
         // Optimize first palette color order
         var pal1 = palettes[palIndex[1] - 1];
+        // Array sized with +2 to accommodate sentinel values at boundaries
         var p1Index = Enumerable.Range(0, numColors + 2).ToArray();
         var p1Dist = new double[numColors + 2, numColors + 2];
         
@@ -1292,10 +1298,12 @@ public class TiledPaletteQuantizer
         {
             for (int iteration = 0; iteration < paletteIterations; iteration++)
             {
-                if (numColors - (1 + startIndex) <= 0)
+                if (numColors - (1 + startIndex) < 1)
                     break;
                     
                 int index1 = Math.Max(1 + startIndex, _random.Next(numColors - 1) + 1);
+                if (numColors - index1 < 1)
+                    continue;
                 int index2 = Math.Min(numColors - 1, index1 + 1 + _random.Next(numColors - index1));
                 
                 int i1b = p1Index[index1 - 1];
