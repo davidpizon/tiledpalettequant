@@ -82,34 +82,44 @@ public class QuantizationOptions
             switch (args[i])
             {
                 case "-i" or "--input":
-                    options.InputPath = GetNextArg(args, i++, "input path");
+                    options.InputPath = GetNextArg(args, i, "input path");
+                    i++;
                     break;
                 case "-o" or "--output":
-                    options.OutputPath = GetNextArg(args, i++, "output path");
+                    options.OutputPath = GetNextArg(args, i, "output path");
+                    i++;
                     break;
                 case "-tw" or "--tile-width":
-                    options.TileWidth = int.Parse(GetNextArg(args, i++, "tile width"));
+                    options.TileWidth = int.Parse(GetNextArg(args, i, "tile width"));
+                    i++;
                     break;
                 case "-th" or "--tile-height":
-                    options.TileHeight = int.Parse(GetNextArg(args, i++, "tile height"));
+                    options.TileHeight = int.Parse(GetNextArg(args, i, "tile height"));
+                    i++;
                     break;
                 case "-p" or "--palettes":
-                    options.PaletteCount = int.Parse(GetNextArg(args, i++, "palette count"));
+                    options.PaletteCount = int.Parse(GetNextArg(args, i, "palette count"));
+                    i++;
                     break;
                 case "-c" or "--colors":
-                    options.ColorsPerPalette = int.Parse(GetNextArg(args, i++, "colors per palette"));
+                    options.ColorsPerPalette = int.Parse(GetNextArg(args, i, "colors per palette"));
+                    i++;
                     break;
                 case "-b" or "--bits":
-                    options.BitsPerChannel = int.Parse(GetNextArg(args, i++, "bits per channel"));
+                    options.BitsPerChannel = int.Parse(GetNextArg(args, i, "bits per channel"));
+                    i++;
                     break;
                 case "-d" or "--dither":
-                    options.DitherMode = ParseDitherMode(GetNextArg(args, i++, "dither mode"));
+                    options.DitherMode = ParseDitherMode(GetNextArg(args, i, "dither mode"));
+                    i++;
                     break;
                 case "-dp" or "--dither-pattern":
-                    options.DitherPattern = ParseDitherPattern(GetNextArg(args, i++, "dither pattern"));
+                    options.DitherPattern = ParseDitherPattern(GetNextArg(args, i, "dither pattern"));
+                    i++;
                     break;
                 case "-f" or "--fraction":
-                    options.FractionOfPixels = double.Parse(GetNextArg(args, i++, "fraction of pixels"));
+                    options.FractionOfPixels = double.Parse(GetNextArg(args, i, "fraction of pixels"));
+                    i++;
                     break;
             }
         }

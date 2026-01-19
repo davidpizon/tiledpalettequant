@@ -6,6 +6,8 @@ namespace TiledPaletteQuant.IO;
 /// </summary>
 public static class BmpWriter
 {
+    private const int BMP_ROW_ALIGNMENT = 4;
+
     /// <summary>
     /// Creates a BMP file from palette data and color indexes.
     /// </summary>
