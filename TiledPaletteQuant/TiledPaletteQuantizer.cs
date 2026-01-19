@@ -128,6 +128,7 @@ public class TiledPaletteQuantizer
     private QuantizationOptions _options = null!;
     private int[,] _ditherPattern = null!;
     private int _ditherPixels;
+    private readonly Random _random = new Random();
     
     /// <summary>
     /// Progress callback delegate.
@@ -1195,12 +1196,11 @@ public class TiledPaletteQuantizer
                 
                 for (int iteration = 0; iteration < pairIterations; iteration++)
                 {
+                    // Need at least 2 colors in the range to swap
                     if (numColors - startIndex - 1 < 1)
                         break;
                         
                     int i1 = startIndex + _random.Next(numColors - startIndex - 1);
-                    if (numColors - i1 - 1 < 1)
-                        break;
                     int i2 = i1 + 1 + _random.Next(numColors - i1 - 1);
                     
                     if (_random.NextDouble() < 0.5)
@@ -1298,13 +1298,8 @@ public class TiledPaletteQuantizer
         {
             for (int iteration = 0; iteration < paletteIterations; iteration++)
             {
-                if (numColors - (1 + startIndex) < 1)
-                    break;
-                    
-                int index1 = Math.Max(1 + startIndex, _random.Next(numColors - 1) + 1);
-                if (numColors - index1 < 1)
-                    continue;
-                int index2 = Math.Min(numColors - 1, index1 + 1 + _random.Next(numColors - index1));
+                int index1 = Math.Max(1 + startIndex, (int)Math.Floor(_random.NextDouble() * numColors));
+                int index2 = Math.Min(numColors, index1 + 1 + (int)Math.Floor(_random.NextDouble() * numColors));
                 
                 int i1b = p1Index[index1 - 1];
                 int i1 = p1Index[index1];
@@ -1534,6 +1529,4 @@ public class TiledPaletteQuantizer
         }
         return startIndex;
     }
-    
-    private readonly Random _random = new Random();
 }

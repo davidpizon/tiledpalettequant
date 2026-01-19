@@ -59,5 +59,6 @@ try
 catch (Exception ex)
 {
     Console.WriteLine($"Error: {ex.Message}");
+    Console.WriteLine($"Stack trace: {ex.StackTrace}");
     return 1;
 }
