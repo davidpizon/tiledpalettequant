@@ -1,4 +1,5 @@
 using FluentAssertions;
+using TiledPaletteQuant;
 using TiledPaletteQuant.Models;
 using Xunit;
 

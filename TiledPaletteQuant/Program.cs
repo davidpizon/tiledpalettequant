@@ -1,4 +1,6 @@
-﻿using TiledPaletteQuant.Core;
+﻿using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+using TiledPaletteQuant.Core;
 using TiledPaletteQuant.IO;
 using TiledPaletteQuant.Models;
 
@@ -51,16 +53,20 @@ class Program
 
             // Load image
             Console.WriteLine($"Loading image: {options.InputPath}");
-            var (imageData, width, height) = ImageProcessor.LoadImage(options.InputPath);
-            Console.WriteLine($"Image size: {width}x{height}");
+            using (var image = Image.Load(options.InputPath)) {
+            //var image = ImageProcessor.LoadImage(options.InputPath); // returns Image<Rgba32>
+            //int width = image.width;
+            //int height = image.height;
+            Console.WriteLine($"Image size: {image.Width}x{image.Height}");
 
             // Quantize
-            var quantizer = new TiledPaletteQuantizer(options, progress =>
+            var quantizer = new TiledPaletteQuantizer();
+
+            var result = quantizer.Quantize(image, options, progress =>
             {
                 Console.Write($"\rProgress: {progress}%   ");
             });
-
-            var result = quantizer.Quantize(imageData, width, height);
+        
             Console.WriteLine("\n");
 
             // Save output
@@ -68,15 +74,17 @@ class Program
             if (totalColors <= 256)
             {
                 Console.WriteLine($"Saving indexed BMP: {options.OutputPath}");
-                BmpWriter.WriteBmp(options.OutputPath, width, height, 
-                    result.PaletteData!, result.ColorIndexes!);
+                image.SaveAsBmp(options.OutputPath);
+
+//                BmpWriter.WriteBmp(options.OutputPath, image.Width, image.Height, 
+//                    result.PaletteData!, result.ColorIndexes!);
             }
             else
             {
                 Console.WriteLine($"Saving PNG (>256 colors): {options.OutputPath}");
-                ImageProcessor.SavePng(options.OutputPath, result.ImageData, width, height);
+                    image.SaveAsPng(options.OutputPath);
             }
-
+            }
             Console.WriteLine("Done!");
         }
         catch (Exception ex)

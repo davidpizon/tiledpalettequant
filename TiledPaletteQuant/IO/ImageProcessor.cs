@@ -39,15 +39,6 @@ public static class ImageProcessor
     }
 
     /// <summary>
-    /// Saves RGBA image data to a PNG file.
-    /// </summary>
-    public static void SavePng(string path, byte[] data, int width, int height)
-    {
-        using var image = Image.LoadPixelData<Rgba32>(data, width, height);
-        image.SaveAsPng(path);
-    }
-
-    /// <summary>
     /// Converts RGBA data to RGB by removing alpha channel.
     /// </summary>
     public static byte[] RgbaToRgb(byte[] rgba, int width, int height)
