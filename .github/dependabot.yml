@@ -1,5 +1,6 @@
 version: 2
 updates:
+  # NuGet dependencies for main project
   - package-ecosystem: "nuget"
     directory: "/TiledPaletteQuant"
     schedule:
@@ -7,9 +8,10 @@ updates:
       day: "monday"
     open-pull-requests-limit: 5
     commit-message:
-      prefix: "deps"
+      prefix: "deps:"
     target-branch: "main"
-  
+
+  # NuGet dependencies for test project
   - package-ecosystem: "nuget"
     directory: "/TiledPaletteQuant.Tests"
     schedule:
@@ -17,5 +19,15 @@ updates:
       day: "monday"
     open-pull-requests-limit: 5
     commit-message:
-      prefix: "deps"
+      prefix: "deps:"
     target-branch: "main"
+
+  # GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci:"
